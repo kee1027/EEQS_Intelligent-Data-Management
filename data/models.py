@@ -93,10 +93,6 @@ class WeatherData(models.Model):
     snow_density_ssg = models.FloatField(verbose_name="SSG雪密度", null=True, blank=True)
     # ==================== 水文站点特有字段 ====================
 
-
-
-
-
     class Meta:
         # 确保每个站点在同一时间戳只有一条记录
         unique_together = ('station', 'timestamp')
@@ -220,15 +216,15 @@ class HydrologyForecastDaily(models.Model):
 
 
 # =============================================================================
-# TimescaleDB Continuous Aggregate Models (managed=False, read-only)
+# Static aggregate data models (computed from raw weather data, read-only)
 # =============================================================================
 
 class WeatherDailyAgg(models.Model):
     """
-    TimescaleDB 日级连续聚合视图 - 只读。
-    由 weather_daily_agg 物化视图自动维护。
+    日级连续聚合数据（静态数据，由原始气象数据计算生成）
     """
-    day = models.DateTimeField(primary_key=True, verbose_name="日期")
+    id = models.AutoField(primary_key=True)
+    day = models.DateTimeField(verbose_name="日期")
     station = models.ForeignKey(
         Station,
         on_delete=models.DO_NOTHING,
@@ -289,8 +285,9 @@ class WeatherDailyAgg(models.Model):
     record_count = models.BigIntegerField(verbose_name="原始记录数")
 
     class Meta:
-        managed = False
+        managed = True
         db_table = "weather_daily_agg"
+        unique_together = ("day", "station")
         ordering = ["-day", "station_id"]
 
     def __str__(self):
@@ -299,10 +296,10 @@ class WeatherDailyAgg(models.Model):
 
 class WeatherHourlyAgg(models.Model):
     """
-    TimescaleDB 小时级连续聚合视图 - 只读。
-    由 weather_hourly_agg 物化视图自动维护。
+    小时级连续聚合数据（静态数据，由原始气象数据计算生成）
     """
-    hour = models.DateTimeField(primary_key=True, verbose_name="小时")
+    id = models.AutoField(primary_key=True)
+    hour = models.DateTimeField(verbose_name="小时")
     station = models.ForeignKey(
         Station,
         on_delete=models.DO_NOTHING,
@@ -336,8 +333,9 @@ class WeatherHourlyAgg(models.Model):
     record_count = models.BigIntegerField(verbose_name="原始记录数")
 
     class Meta:
-        managed = False
+        managed = True
         db_table = "weather_hourly_agg"
+        unique_together = ("hour", "station")
         ordering = ["-hour", "station_id"]
 
     def __str__(self):

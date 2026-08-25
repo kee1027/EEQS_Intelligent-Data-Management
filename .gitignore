@@ -29,6 +29,7 @@ venv.bak/
 Thumbs.db
 
 # Data / runtime
+static_data/
 data/raster_data/
 data/tiles/
 data/tiles_modis_snow/
@@ -47,6 +48,10 @@ archive/
 # Jupyter
 *.ipynb
 .ipynb_checkpoints/
+
+# Scripts / temp
+tmp_*.py
+scripts/
 
 # Schema dumps (can be regenerated)
 schema.json
