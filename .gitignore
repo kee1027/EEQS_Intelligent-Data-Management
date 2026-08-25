@@ -1,0 +1,54 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data / runtime
+data/raster_data/
+data/tiles/
+data/tiles_modis_snow/
+dump.rdb
+
+# Backup / archive
+archive/
+*.bak
+*.backup
+
+# PPT / docs (non-code)
+*.pptx
+*.docx
+*.pdf
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Schema dumps (can be regenerated)
+schema.json
+schema.yml
+test_schema.yml
