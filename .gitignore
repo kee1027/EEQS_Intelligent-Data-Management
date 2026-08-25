@@ -1,21 +1,4 @@
-# Django
-*.log
-*.pot
-*.pyc
-__pycache__/
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Root-level gitignore
 
 # IDE
 .vscode/
@@ -28,32 +11,14 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Data / runtime
-static_data/
-data/raster_data/
-data/tiles/
-data/tiles_modis_snow/
-dump.rdb
+# Environment
+.env
 
-# Backup / archive
-archive/
-*.bak
-*.backup
+# Python
+__pycache__/
+*.pyc
 
-# PPT / docs (non-code)
-*.pptx
-*.docx
-*.pdf
-
-# Jupyter
-*.ipynb
-.ipynb_checkpoints/
-
-# Scripts / temp
-tmp_*.py
-scripts/
-
-# Schema dumps (can be regenerated)
-schema.json
-schema.yml
-test_schema.yml
+# Frontend (placeholder)
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
