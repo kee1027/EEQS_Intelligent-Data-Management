@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+  <link rel="stylesheet" type="text/css" href="css/iconfont.css">
+  <link rel="manifest" href="json/manifest.json" >
+  <% if(process.env.VUE_APP_MODE === "development") { %>
+  <!-- <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/vue/2.6.14/vue.js"></script> -->
+  <!-- <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-y/element-ui/2.15.7/index.min.js"></script> -->
+  <!-- <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-y/element-ui/2.15.7/locale/zh-CN.min.js"></script> -->
+  <% } %>
+  <title>
+    <%= webpackConfig.name %>
+  </title>
+  <style type="text/css">
+    .amap-logo {
+      display: none;
+      opacity: 0 !important;
+    }
+
+    .amap-copyright {
+      opacity: 0;
+    }
+  </style>
+
+</head>
+
+<body>
+<noscript>
+  <strong>We're sorry but <%= webpackConfig.name %> doesn't work properly without JavaScript enabled. Please enable it
+    to continue.</strong>
+</noscript>
+<div id="app"></div>
+<!-- built files will be auto injected -->
+</body>
+
+</html>

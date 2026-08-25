@@ -1,0 +1,29 @@
+/* 预报页面公共样式 */
+.forecast-page {
+  padding: 24px;
+  background: #f8f9fa;
+}
+
+.forecast-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forecast-card {
+  background: white;
+  border: 1px solid #eaedf2;
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.forecast-chart-container {
+  height: 500px;
+}
+
+.period-selector {
+  display: flex;
+  gap: 12px;
+}
