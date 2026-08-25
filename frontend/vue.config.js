@@ -28,6 +28,16 @@ module.exports = {
     },
     proxy: {
       '/api': {
+        // 本地开发环境：代理到本机 Django 后端
+        // 如需改为局域网其他设备，设置环境变量 BACKEND_URL
+        target: process.env.BACKEND_URL || 'http://localhost:8000',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api': '/api'
+        }
+      }
+    }
+      '/api': {
         target: 'http://10.16.13.46:8000',
         changeOrigin: true,
         pathRewrite: {
