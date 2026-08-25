@@ -1,0 +1,215 @@
+@import './variables';
+@import './mixin.scss';
+@import './transition.scss';
+@import './element-ui.scss';
+@import './sidebar.scss';
+
+body {
+  height: 100%;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft Yahei", "Hiragino Sans GB", sans-serif;
+}
+
+label {
+  font-weight: 600;
+}
+
+html {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+#app {
+  height: 100%;
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+a:focus,
+a:active {
+  outline: none;
+}
+
+a,
+a:focus,
+a:hover {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+
+div:focus {
+  outline: none;
+}
+
+.clearfix {
+  &:after {
+    visibility: hidden;
+    display: block;
+    font-size: 0;
+    content: " ";
+    clear: both;
+    height: 0;
+  }
+}
+
+// main-container global css
+.app-container {
+  padding: 24px;
+  height: 100%;
+}
+
+// dashboard相关css
+.com-page,
+.com-container,
+.com-chart {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+
+/*全局滚动条样式*/
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.flow-tooltips {
+  .flow-wrap {
+    font-weight: 700;
+    font-size: 14px;
+    color: rgba(0,0,0,.8);
+    margin: 4px auto 0;
+    padding: 0 8px;
+    .flow-item {
+      display: flex;
+      align-items: center;
+      .flow-text {
+        color: rgba(0,0,0,.6);
+        font-weight: 400;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+/*全局滚动条样式结束*/
+
+// 全局主题色
+:root {
+  --primary-color: #0b4f7c;
+  --primary-bg-color: #e6f0fa;
+  --color-success: #058a6f;
+}
+
+/* whiterisk 风格通用页面容器 */
+.whiterisk-theme {
+  background-color: #f8f9fa;
+  color: #1e2125;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+  padding-bottom: 50px;
+  min-height: 100%;
+}
+
+.whiterisk-theme .page-header {
+  padding: 32px 5%;
+  background: white;
+  border-bottom: 1px solid #eaedf2;
+}
+
+.whiterisk-theme .page-header h1 {
+  font-size: 26px;
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.whiterisk-theme .breadcrumb {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.whiterisk-theme .dashboard-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+.whiterisk-theme .card {
+  background: white;
+  border: 1px solid #eaedf2;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+
+.whiterisk-theme .card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.whiterisk-theme .card-header {
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #334155;
+}
+
+.whiterisk-theme .big-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0b4f7c;
+  margin: 8px 0;
+}
+
+.whiterisk-theme .big-value .unit {
+  font-size: 16px;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.whiterisk-theme .mid-value {
+  font-size: 22px;
+  font-weight: 600;
+  display: block;
+  margin-top: 8px;
+  color: #0f172a;
+}
+
+.whiterisk-theme .mid-value.cold {
+  color: #0b4f7c;
+}
+
+.whiterisk-theme .label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.whiterisk-theme .value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #0f172a;
+}

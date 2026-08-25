@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "水库",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+
+{ "type": "Feature", "properties": { "Id": 0, "name": "水库" }, "geometry": { "type": "Point", "coordinates": [ 89.55710746199054, 47.050796809969476 ] } }
+]
+}

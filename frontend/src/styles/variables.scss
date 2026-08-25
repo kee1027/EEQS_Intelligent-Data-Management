@@ -1,0 +1,63 @@
+$side-bar-width: 210px;
+$dark: (
+  menu-bg: #0f172a,
+  menu-text: #94a3b8,
+  menu-hover: #1e293b,
+  menu-active-text: #ffffff,
+  sub-menu-bg: #0f172a,
+  sub-menu-hover: #1e293b,
+  sub-menu-active-text: #f4f4f5,
+  sub-menu-active-bg: linear-gradient(270deg, rgba(0, 0, 0, 0) 0%, var(--primary-color) 50%, rgba(84, 84, 84, 0) 100%) 0% 0% no-repeat padding-box padding-box transparent
+);
+$light: (
+  menu-bg: #ffffff,
+  menu-text: #475569,
+  menu-hover: #f1f5f9,
+  menu-active-text: var(--primary-color),
+  sub-menu-bg: #ffffff,
+  sub-menu-hover: #f1f5f9,
+  sub-menu-active-text: #0b4f7c,
+  sub-menu-active-bg: #f1f5f9
+);
+$dark: (
+  menu-bg: #191a20,
+  menu-text: #bdbdc0,
+  menu-hover: #2c2d38,
+  menu-active-text: #ffffff,
+  sub-menu-bg: #191a20,
+  sub-menu-hover: #2c2d38,
+  sub-menu-active-text: #f4f4f5,
+  sub-menu-active-bg: linear-gradient(270deg, rgba(0, 0, 0, 0) 0%, var(--primary-color) 50%, rgba(84, 84, 84, 0) 100%) 0% 0% no-repeat padding-box padding-box transparent
+);
+$light: (
+  menu-bg: rgba(255, 255, 255),
+  menu-text: #7a80b4,
+  menu-hover: var(--primary-bg-color),
+  menu-active-text: var(--primary-color),
+  sub-menu-bg: rgba(255, 255, 255),
+  sub-menu-hover: var(--primary-bg-color),
+  sub-menu-active-text: #409eff,
+  sub-menu-active-bg: var(--primary-bg-color)
+);
+@function format-variable-name($prefix, $suffix) {
+  @return '#{$prefix}-#{$suffix}';
+}
+
+@each $key, $value in $dark {
+  $name: format-variable-name('dark', $key);
+  :export {
+    #{$name}: $value;
+  }
+}
+
+@each $key, $value in $light {
+  $name: format-variable-name('light', $key);
+  :export {
+    #{$name}: $value;
+  }
+}
+:root {
+  @each $key, $value in $dark {
+    --#{$key}: #{$value};
+  }
+}

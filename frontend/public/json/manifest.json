@@ -1,0 +1,11 @@
+{
+  "name": "Truwel云平台",
+  "display": "standalone",
+  "start_url": "../index.html",
+  "icons":
+    [{
+      "src": "./truwel_logo_144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    }]
+}
