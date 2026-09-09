@@ -30,6 +30,7 @@ Thumbs.db
 
 # Data / runtime
 static_data/
+prediction_io/
 data/raster_data/
 data/tiles/
 data/tiles_modis_snow/

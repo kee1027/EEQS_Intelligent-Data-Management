@@ -1,19 +1,45 @@
 """
-Django settings for EEQS-RAG static-data mode.
+Django settings for EEQS-RAG backend.
 
-此配置使用 SQLite 作为数据库（无需运行 PostgreSQL 服务），
-所有业务数据通过 `python manage.py load_static_data` 从 JSON 静态文件加载。
+数据库默认使用 Docker 中的 PostgreSQL（见 backend/docker-compose.yml，
+连接参数 eeqs/eeqs_dev_password@localhost:5432/eeqs），可通过环境变量覆盖。
+业务数据通过 `python manage.py load_static_data` 从 JSON 静态文件加载。
 
-环境变量（.env）:
-    DJANGO_SECRET_KEY
-    DJANGO_DEBUG
-    DJANGO_ALLOWED_HOSTS
+水文预测采用「文件交换式」流水线：后端导出输入文件 ->
+Docker 容器中的模型读取/写回文件 -> 后端解析入库（见 data/hydrology_service.py）。
+
+环境变量（可写在 backend/.env，本文件会自动读取）:
+    DJANGO_SECRET_KEY / DJANGO_DEBUG / DJANGO_ALLOWED_HOSTS
+    DB_ENGINE / DB_NAME / DB_USER / DB_PASSWORD / DB_HOST / DB_PORT
+    HYDROLOGY_MODEL_IMAGE / HYDROLOGY_DOCKER_BIN / HYDROLOGY_IO_DIR
+    HYDROLOGY_INPUT_DAYS / HYDROLOGY_DOCKER_TIMEOUT_SECONDS
+    HYDROLOGY_DEFAULT_MODEL_NAME / HYDROLOGY_DEFAULT_MODEL_VERSION
+    HYDROLOGY_RETRY_ATTEMPTS / HYDROLOGY_RETRY_DELAY_SECONDS
+    CELERY_BROKER_URL
 """
 
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path):
+    """极简 .env 加载器：KEY=VALUE 逐行读取，不覆盖已存在的系统环境变量。"""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY",
@@ -82,11 +108,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "mysite.wsgi.application"
 
-# SQLite — 无需额外服务，数据通过 load_static_data 注入
+# 数据库 —— 默认指向 Docker 中的 PostgreSQL（backend/docker-compose.yml），
+# 全部参数可用环境变量覆盖；如需临时回退 SQLite，设置
+# DB_ENGINE=django.db.backends.sqlite3 且 DB_NAME=db.sqlite3 即可。
+_default_db_engine = os.environ.get("DB_ENGINE", "django.db.backends.postgresql")
+_default_db_name = os.environ.get("DB_NAME", "eeqs")
+if _default_db_engine == "django.db.backends.sqlite3" and not os.environ.get("DB_NAME"):
+    _default_db_name = BASE_DIR / "db.sqlite3"
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": _default_db_engine,
+        "NAME": _default_db_name,
+        "USER": os.environ.get("DB_USER", "eeqs"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "eeqs_dev_password"),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
@@ -119,16 +156,21 @@ TILE_MIN_ZOOM = 0
 TILE_MAX_ZOOM = 22
 TILE_CACHE_CONTROL = "public, max-age=3600"
 
-# Hydrology forecast settings (model script path)
-HYDROLOGY_MODEL_SCRIPT_PATH = os.environ.get(
-    "HYDROLOGY_MODEL_SCRIPT_PATH",
-    r"F:\模型脚本\lstm\lstm_enkf_online_meteorology.py",
-)
-HYDROLOGY_MODEL_ENTRYPOINT = "run_forecast"
-HYDROLOGY_DEFAULT_MODEL_NAME = "lstm"
-HYDROLOGY_DEFAULT_MODEL_VERSION = "v1"
-HYDROLOGY_RETRY_ATTEMPTS = 3
-HYDROLOGY_RETRY_DELAY_SECONDS = 300
+# Hydrology forecast settings —— 文件交换式 Docker 模型流水线
+# 流程：导出输入文件 -> docker run 挂载 IO 目录运行模型容器 -> 解析输出文件入库
+HYDROLOGY_MODEL_IMAGE = os.environ.get("HYDROLOGY_MODEL_IMAGE", "eeqs-prediction-model:latest")
+# docker 可执行文件；留空时自动探测 PATH，再回退 Docker Desktop 默认安装路径
+HYDROLOGY_DOCKER_BIN = os.environ.get("HYDROLOGY_DOCKER_BIN", "")
+# 宿主机 IO 根目录（其下按 <run_id>/input、<run_id>/output 组织）
+HYDROLOGY_IO_DIR = os.environ.get("HYDROLOGY_IO_DIR", str(BASE_DIR / "prediction_io"))
+# 输入序列天数（每个站点取 target_date 之前最近 N 天的日聚合观测）
+HYDROLOGY_INPUT_DAYS = int(os.environ.get("HYDROLOGY_INPUT_DAYS", "30"))
+# 模型容器运行超时（秒）
+HYDROLOGY_DOCKER_TIMEOUT_SECONDS = int(os.environ.get("HYDROLOGY_DOCKER_TIMEOUT_SECONDS", "300"))
+HYDROLOGY_DEFAULT_MODEL_NAME = os.environ.get("HYDROLOGY_DEFAULT_MODEL_NAME", "mock-scale-7day")
+HYDROLOGY_DEFAULT_MODEL_VERSION = os.environ.get("HYDROLOGY_DEFAULT_MODEL_VERSION", "v1")
+HYDROLOGY_RETRY_ATTEMPTS = int(os.environ.get("HYDROLOGY_RETRY_ATTEMPTS", "3"))
+HYDROLOGY_RETRY_DELAY_SECONDS = int(os.environ.get("HYDROLOGY_RETRY_DELAY_SECONDS", "300"))
 HYDROLOGY_DAILY_RUN_HOUR = 1
 HYDROLOGY_DAILY_RUN_MINUTE = 0
 

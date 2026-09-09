@@ -6,9 +6,6 @@ drf-spectacular>=0.27,<1.0
 django-apscheduler>=0.7,<1.0
 APScheduler>=3.10,<4.0
 pytz>=2024.1
-# psycopg2-binary not needed in SQLite static-data mode
-# psycopg2-binary>=2.9,<3.0
-pandas>=2.0,<3.0
 psycopg2-binary>=2.9,<3.0
 pandas>=2.0,<3.0
 numpy>=2.0,<3.0
@@ -18,7 +15,9 @@ celery>=5.3,<6.0
 redis>=5.0,<6.0
 django-celery-results>=2.5,<3.0
 
-# ---- Raster / geospatial (NC/HDF visualization) ----
+# ---- Raster / geospatial (NC/HDF visualization, optional heavy deps) ----
+# 注：仅 ned_vision_plan / data/raster_pipeline 使用；装不上可先注释，
+# 不影响数据库、预测流水线与 API 的运行。
 xarray>=2024.0
 rioxarray>=0.15
 rasterio>=1.3

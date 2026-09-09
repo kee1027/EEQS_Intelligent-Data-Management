@@ -7,7 +7,11 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.response import Response
 
-from .filters import WeatherDailyAggFilter, WeatherHourlyAggFilter
+from .filters import (
+    HydrologyForecastDailyFilter,
+    WeatherDailyAggFilter,
+    WeatherHourlyAggFilter,
+)
 from .hydrology_service import run_hydrology_forecast
 from .models import (
     HydrologyForecastDaily,
@@ -138,9 +142,57 @@ class HydrologyForecastRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin
 
 
 class HydrologyForecastDailyViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    预测结果查询。
+
+    - 列表支持过滤: station__name / target_date / target_date__gte / target_date__lte /
+      model_name / model_version / run__run_id
+    - GET /api/hydrology-forecast-daily/latest/ 返回最近一次成功运行
+      每个站点的未来 7 天预测序列，便于前端直接画图。
+    """
     queryset = HydrologyForecastDaily.objects.select_related("station", "run").all()
     serializer_class = HydrologyForecastDailySerializer
-    filterset_fields = ["station__name", "target_date", "model_name", "model_version", "run__run_id"]
+    filterset_class = HydrologyForecastDailyFilter
+
+    @action(detail=False, methods=["get"])
+    def latest(self, request):
+        run = (
+            HydrologyForecastRun.objects.filter(
+                status=HydrologyForecastRun.Status.SUCCESS, record_count__gt=0
+            )
+            .order_by("-finished_at", "-created_at")
+            .first()
+        )
+        if run is None:
+            return Response(
+                {"run_id": None, "target_date": None, "model_name": None,
+                 "model_version": None, "stations": []},
+                status=status.HTTP_200_OK,
+            )
+
+        qs = (
+            HydrologyForecastDaily.objects.filter(run=run)
+            .select_related("station")
+            .order_by("station__name", "target_date")
+        )
+        stations = {}
+        for row in qs:
+            entry = stations.setdefault(row.station.name, [])
+            entry.append(
+                {"target_date": row.target_date.isoformat(), "flow_avg": str(row.flow_avg)}
+            )
+
+        payload = {
+            "run_id": run.run_id,
+            "target_date": run.target_date.isoformat(),
+            "model_name": run.model_name,
+            "model_version": run.model_version,
+            "stations": [
+                {"station": name, "forecasts": forecasts}
+                for name, forecasts in stations.items()
+            ],
+        }
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class WeatherDailyAggViewSet(viewsets.ReadOnlyModelViewSet):

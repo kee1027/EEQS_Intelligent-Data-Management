@@ -1,0 +1,27 @@
+version: "3.8"
+
+# EEQS-RAG 后端开发数据库
+# 启动:  docker-compose up -d        （或 docker compose up -d）
+# 停止:  docker-compose down         （加 -v 会连数据卷一起删除）
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: eeqs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eeqs
+      POSTGRES_USER: eeqs
+      POSTGRES_PASSWORD: eeqs_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - eeqs-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eeqs -d eeqs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  eeqs-postgres-data:
+    name: eeqs-postgres-data
