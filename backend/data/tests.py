@@ -102,8 +102,10 @@ class ManualDataRecordApiTests(TestCase):
         }
 
     def test_requires_login(self):
+        # 未认证 → 401（REST 语义：「你是谁？」）；403 留给「已登录但无权」（REST 语义：「我知道你是谁，但不行」）。
+        # DRF 的认证类列表中 BasicAuthentication 排第一时会返回 401 并携带 WWW-Authenticate 头。
         response = self.client.post(self.url, data=self.payload, content_type="application/json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_record_uses_logged_in_operator_and_auto_operated_at(self):
         self.client.force_login(self.user)
