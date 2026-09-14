@@ -28,3 +28,13 @@ frontend/*.log
 frontend/stats.json
 frontend/.env.development
 frontend/.env.production
+
+# Local notes & learning materials (not part of the product)
+*教程*/
+*指南*/
+*笔记*/
+*tutorial*/
+*tutorials*/
+*guide*/
+*notes*/
+docs-local/
