@@ -15,6 +15,12 @@ celery>=5.3,<6.0
 redis>=5.0,<6.0
 django-celery-results>=2.5,<3.0
 
+# ---- AI assistant（ai_assistant app）----
+langchain>=1.0
+langgraph>=1.0
+langchain-openai>=1.0
+sqlglot>=26.0
+
 # ---- Raster / geospatial (NC/HDF visualization, optional heavy deps) ----
 # 注：仅 ned_vision_plan / data/raster_pipeline 使用；装不上可先注释，
 # 不影响数据库、预测流水线与 API 的运行。

@@ -16,6 +16,7 @@ Docker 容器中的模型读取/写回文件 -> 后端解析入库（见 data/hy
     HYDROLOGY_DEFAULT_MODEL_NAME / HYDROLOGY_DEFAULT_MODEL_VERSION
     HYDROLOGY_RETRY_ATTEMPTS / HYDROLOGY_RETRY_DELAY_SECONDS
     CELERY_BROKER_URL
+    LLM_API_KEY / LLM_BASE_URL / LLM_MODEL（AI 问答，见文件末尾 AI 配置块）
 """
 
 import os
@@ -59,6 +60,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "data.apps.DataConfig",
+    "ai_assistant",
     "rest_framework",
     "django_filters",
     'django_apscheduler',
@@ -217,3 +219,23 @@ else:
     CELERY_BEAT_SCHEDULE = {}
 
 HYDROLOGY_ASYNC_MODE = False
+
+# =============================================================================
+# AI 智能问答（ai_assistant app）
+# =============================================================================
+# LLM：任一 OpenAI 兼容协议的服务（DeepSeek / Kimi / 通义等），换厂商只改这里
+AI_LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
+AI_LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")
+AI_LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-chat")
+AI_LLM_TIMEOUT_SECONDS = int(os.environ.get("LLM_TIMEOUT_SECONDS", "60"))
+
+# Text2SQL 安全阈值
+AI_SQL_MAX_ROWS = int(os.environ.get("AI_SQL_MAX_ROWS", "50"))
+AI_SQL_TIMEOUT_SECONDS = int(os.environ.get("AI_SQL_TIMEOUT_SECONDS", "10"))
+
+# 统计外推（M3）：置信度低于该阈值时拒绝回答并提示转人工
+EXTRAPOLATION_MIN_CONFIDENCE = float(os.environ.get("EXTRAPOLATION_MIN_CONFIDENCE", "0.6"))
+
+# RAG 知识库（M4）：BGE-M3 模型路径（HuggingFace 名或本地目录）与检索条数
+BGE_M3_MODEL_PATH = os.environ.get("BGE_M3_MODEL_PATH", "BAAI/bge-m3")
+RAG_TOP_K = int(os.environ.get("RAG_TOP_K", "5"))
