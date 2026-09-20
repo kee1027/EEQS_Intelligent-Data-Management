@@ -38,3 +38,9 @@ frontend/.env.production
 *guide*/
 *notes*/
 docs-local/
+
+# 本地镜像仓库与数据文件（不入库）
+eeqs-mirror/
+import_data/
+*.dat
+*.dat.backup
