@@ -312,9 +312,12 @@ export default {
         const response = await getWeatherData({
           station__name: 'HXC',
           ordering: '-timestamp',
-          limit: this.maxDataPoints
+          page_size: this.maxDataPoints
         });
-        let data = response.data;
+        // DRF 分页响应为 {count, next, previous, results}，需取 results；兼容非分页数组
+        let data = Array.isArray(response.data)
+          ? response.data
+          : (response.data && Array.isArray(response.data.results) ? response.data.results : []);
         if (Array.isArray(data)) {
           // 按时间排序，取最新的maxDataPoints条
           data = data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, this.maxDataPoints);

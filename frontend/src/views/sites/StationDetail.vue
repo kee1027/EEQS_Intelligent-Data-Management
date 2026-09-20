@@ -602,7 +602,8 @@ export default {
       // 构建请求参数
       const params = {
         station__name: this.stationConfig.apiName,
-        ordering: 'timestamp'
+        ordering: 'timestamp',
+        page_size: 1000
       };
       if (reqStart) {
         params.timestamp__gte = this.toISOString(new Date(reqStart));
@@ -616,7 +617,10 @@ export default {
 
       try {
         const res = await getWeatherData(params, { signal: controller.signal });
-        const data = Array.isArray(res.data) ? res.data : [];
+        // DRF 分页响应为 {count, next, previous, results}，需取 results；兼容非分页数组
+        const data = Array.isArray(res.data)
+          ? res.data
+          : (res.data && Array.isArray(res.data.results) ? res.data.results : []);
 
         // 按时间排序并处理
         const sortedData = data
@@ -853,9 +857,12 @@ export default {
           const res = await getWeatherData({
             station__name: this.stationConfig.apiName,
             ordering: '-timestamp',
-            limit: 10000
+            page_size: 1000
           });
-          exportData = Array.isArray(res.data) ? res.data : [];
+          // DRF 分页响应为 {count, next, previous, results}，需取 results；兼容非分页数组
+          exportData = Array.isArray(res.data)
+            ? res.data
+            : (res.data && Array.isArray(res.data.results) ? res.data.results : []);
         } catch (error) {
           console.error('导出站点数据失败:', error);
           this.$message.error('导出站点数据失败');

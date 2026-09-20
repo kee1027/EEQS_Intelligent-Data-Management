@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "data.apps.DataConfig",
     "ai_assistant",
+    "accounts",
     "rest_framework",
     "django_filters",
     'django_apscheduler',
@@ -146,7 +147,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = ["http://*", "https://*"]
+# Django 的通配符只支持子域形式（如 https://*.example.com），"http://*" 不匹配任何来源。
+# 开发环境需显式列出前端 dev-server 的完整来源（含端口），生产可通过环境变量覆盖。
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    "http://localhost:9528,http://127.0.0.1:9528",
+).split(",")
 
 # Tile distribution settings (dev defaults)
 TILE_DATASETS = {
