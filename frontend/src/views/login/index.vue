@@ -9,6 +9,38 @@
       <div class="login-form">
         <h1>用户登录</h1>
         <p class="hint">请输入您的账号信息以继续</p>
+        <el-form ref="loginForm" :model="form" :rules="rules" @submit.native.prevent>
+          <el-form-item prop="username">
+            <el-input
+              v-model.trim="form.username"
+              prefix-icon="el-icon-user"
+              placeholder="用户名"
+              autocomplete="username"
+              @keyup.enter.native="submitForm"
+            />
+          </el-form-item>
+          <el-form-item prop="password">
+            <el-input
+              v-model="form.password"
+              prefix-icon="el-icon-lock"
+              type="password"
+              placeholder="密码"
+              autocomplete="current-password"
+              show-password
+              @keyup.enter.native="submitForm"
+            />
+          </el-form-item>
+          <el-form-item style="margin-bottom: 0;">
+            <el-button
+              type="primary"
+              style="width: 100%;"
+              :loading="loading"
+              @click="submitForm"
+            >
+              登 录
+            </el-button>
+          </el-form-item>
+        </el-form>
       </div>
     </div>
     <div class="login-footer">
@@ -19,7 +51,46 @@
 
 <script>
 export default {
-  name: 'Login'
+  name: 'Login',
+  data() {
+    return {
+      loading: false,
+      form: {
+        username: '',
+        password: ''
+      },
+      rules: {
+        username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+        password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+      }
+    }
+  },
+  methods: {
+    submitForm() {
+      this.$refs.loginForm.validate(async (valid) => {
+        if (!valid) return
+        this.loading = true
+        try {
+          await this.$store.dispatch('user/login', this.form)
+          this.$message.success('登录成功')
+          const redirect = this.$route.query.redirect || '/'
+          this.$router.push(redirect)
+        } catch (error) {
+          const status = error && error.response && error.response.status
+          const detail = error && error.response && error.response.data && error.response.data.detail
+          if (status === 401) {
+            this.$message.error(detail || '用户名或密码错误')
+          } else if (status === 403) {
+            this.$message.error(detail || '账户已被停用，请联系管理员')
+          } else {
+            this.$message.error('登录失败，请稍后重试')
+          }
+        } finally {
+          this.loading = false
+        }
+      })
+    }
+  }
 }
 </script>
 
