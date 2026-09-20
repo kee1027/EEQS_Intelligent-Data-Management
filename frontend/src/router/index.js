@@ -39,10 +39,11 @@ export const constantRoutes = [
           { path: 'kuwei', name: 'WeatherKuwei', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '库威积雪水文观测场', stationId: 'KW' } },
           { path: 'kayier', name: 'WeatherKayier', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '喀依尔综合观测系统', stationId: 'KYE' } },
           { path: 'jinge', name: 'WeatherJinge', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '金格观测系统', stationId: 'JG' } },
-          { path: 'akesala', name: 'WeatherAkesala', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '阿克萨拉观测场', stationId: 'AKS' } },
-          { path: 'keketuohai', name: 'WeatherKeketuohai', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '可可托海滑雪场站', stationId: 'KKTH' } },
-          { path: 'kekesuli', name: 'WeatherKekesuli', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '可可苏里气象站', stationId: 'KKSLM' } },
-          { path: 'senlin', name: 'WeatherSenlin', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '森林站', stationId: 'SL' } }
+          { path: 'akesala', name: 'WeatherAkesala', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '阿克萨拉观测场', stationId: 'AKSL' } },
+          { path: 'hongshanzui', name: 'WeatherHongshanzui', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '红山嘴站', stationId: 'HSZ' } },
+          { path: 'halong', name: 'WeatherHalong', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '哈龙站', stationId: 'HL' } },
+          { path: 'sandaohaizi', name: 'WeatherSandaohaizi', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '三道海子站', stationId: 'SDHZ' } },
+          { path: 'huaxuechang', name: 'WeatherHuaxuechang', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '可可托海滑雪场站', stationId: 'HXC' } }
         ]
       },
       {
@@ -76,10 +77,11 @@ export const constantRoutes = [
           { path: 'kuwei', name: 'SnowKuwei', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '库威积雪水文观测场', stationId: 'KW' } },
           { path: 'kayier', name: 'SnowKayier', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '喀依尔综合观测系统', stationId: 'KYE' } },
           { path: 'jinge', name: 'SnowJinge', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '金格观测系统', stationId: 'JG' } },
-          { path: 'akesala', name: 'SnowAkesala', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '阿克萨拉观测场', stationId: 'AKS' } },
-          { path: 'keketuohai', name: 'SnowKeketuohai', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '可可托海滑雪场站', stationId: 'KKTH' } },
-          { path: 'kekesuli', name: 'SnowKekesuli', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '可可苏里降雪站', stationId: 'KKSLS' } },
-          { path: 'senlin', name: 'SnowSenlin', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '森林站', stationId: 'SL' } }
+          { path: 'akesala', name: 'SnowAkesala', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '阿克萨拉观测场', stationId: 'AKSL' } },
+          { path: 'hongshanzui', name: 'SnowHongshanzui', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '红山嘴站', stationId: 'HSZ' } },
+          { path: 'halong', name: 'SnowHalong', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '哈龙站', stationId: 'HL' } },
+          { path: 'sandaohaizi', name: 'SnowSandaohaizi', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '三道海子站', stationId: 'SDHZ' } },
+          { path: 'huaxuechang', name: 'SnowHuaxuechang', component: () => import('@/views/sites/StationDetail.vue'), meta: { title: '可可托海滑雪场站', stationId: 'HXC' } }
         ]
       },
       {

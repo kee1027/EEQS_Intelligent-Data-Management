@@ -31,14 +31,20 @@ class WeatherData(models.Model):
     # 土壤数据
     vwc_soil_10cm = models.FloatField(verbose_name="土壤含水量1(10cm)", null=True, blank=True)
     vwc_soil_20cm = models.FloatField(verbose_name="土壤含水量2(20cm)", null=True, blank=True)
+    vwc_soil_30cm = models.FloatField(verbose_name="土壤含水量(30cm)", null=True, blank=True)
     vwc_soil_40cm = models.FloatField(verbose_name="土壤含水量3(40cm)", null=True, blank=True)
     vwc_soil_60cm = models.FloatField(verbose_name="土壤含水量4(60cm)", null=True, blank=True)
+    vwc_soil_80cm = models.FloatField(verbose_name="土壤含水量(80cm)", null=True, blank=True)
     vwc_soil_100cm = models.FloatField(verbose_name="土壤含水量5(100cm)", null=True, blank=True)
+    vwc_soil_150cm = models.FloatField(verbose_name="土壤含水量(150cm)", null=True, blank=True)
     t_soil_10cm = models.FloatField(verbose_name="土壤温度1(10cm)", null=True, blank=True)
     t_soil_20cm = models.FloatField(verbose_name="土壤温度2(20cm)", null=True, blank=True)
+    t_soil_30cm = models.FloatField(verbose_name="土壤温度(30cm)", null=True, blank=True)
     t_soil_40cm = models.FloatField(verbose_name="土壤温度3(40cm)", null=True, blank=True)
     t_soil_60cm = models.FloatField(verbose_name="土壤温度4(60cm)", null=True, blank=True)
+    t_soil_80cm = models.FloatField(verbose_name="土壤温度(80cm)", null=True, blank=True)
     t_soil_100cm = models.FloatField(verbose_name="土壤温度5(100cm)", null=True, blank=True)
+    t_soil_150cm = models.FloatField(verbose_name="土壤温度(150cm)", null=True, blank=True)
     
     # 降水和雪深
     rainsnow = models.FloatField(verbose_name="降水累计值", null=True, blank=True)
@@ -91,6 +97,11 @@ class WeatherData(models.Model):
     # SSG雪水当量和密度
     swe_ssg = models.FloatField(verbose_name="SSG雪水当量", null=True, blank=True)
     snow_density_ssg = models.FloatField(verbose_name="SSG雪密度", null=True, blank=True)
+
+    # ==================== HXC站点特有字段 ====================
+    # TRB3 冗余温湿度传感器（HXC 站第二套观测）
+    trb3_ta = models.FloatField(verbose_name="TRB3空气温度", null=True, blank=True)
+    trb3_rh = models.FloatField(verbose_name="TRB3相对湿度", null=True, blank=True)
     # ==================== 水文站点特有字段 ====================
 
     class Meta:

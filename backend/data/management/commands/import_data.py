@@ -1,4 +1,5 @@
 # 导入所需的库
+import re
 import pandas as pd
 import numpy as np
 import pytz
@@ -11,34 +12,66 @@ from data.models import Station, WeatherData
 # ---------------------------------------------------------------------------
 # 文件路径常量
 # ---------------------------------------------------------------------------
-DATA_MAIN_FILE = Path(r"F:\CSI_Datai\LoggerNet\两河源北斗接收_Data_Receive.dat")
-DATA_BACKUP_FILE = Path(r"F:\CSI_Datai\LoggerNet\两河源北斗接收_Data_Receive.dat.backup")
+DATA_MAIN_FILE = Path(r"C:\Users\Administrator\Documents\kimi\Workspaces\RAG数据库\import_data\两河源北斗接收_Data_Receive.dat")
+DATA_BACKUP_FILE = Path(r"C:\Users\Administrator\Documents\kimi\Workspaces\RAG数据库\import_data\两河源北斗接收_Data_Receive.dat.backup")
 
 # ---------------------------------------------------------------------------
-# 站点定义（从列名前缀到表名的映射，以及列范围）
+# 已知站点清单
 # ---------------------------------------------------------------------------
-STATION_DEFINITIONS = [
-    ('HXC',   'HXC_Header',   'HXC_TRB3_RH'),
-    ('KW',    'KW_Header',    'KW_Snow_density'),
-    ('JG',    'JG_Header',    'JG_Snow_Depth'),
-    ('KYE',   'KYE_Header',   'KYE_Snow_Depth'),
-    ('KKSLS', 'KKSLS_Header', 'KKSLS_Snow_density'),
-    ('KKSLM', 'KKSLM_Header', 'KKSLM_RainSnow_HalfHour'),
-    ('AKSL',  'AKSL_Header',  'AKSL_Snow_Depth'),
-    ('SDHZ',  'SDHZ_Header',  'SDHZ_Snow_density'),
+# 站点列块不再靠「首列/末列」硬编码圈定，而是按列名前缀（如 KW_、HSZ_）
+# 动态识别——新增站点（如 HSZ、HL）无需改代码即可自动导入。
+# 本清单的用途是「缺失标记」：已知站点在文件中缺席时仅标记、不报错，
+# 站点记录保留在数据库中（历史数据不删除）。
+KNOWN_STATIONS = [
+    'HXC', 'KW', 'JG', 'KYE', 'KKSLS', 'KKSLM', 'AKSL', 'SDHZ', 'HSZ', 'HL',
 ]
+
+# 站点列名前缀：一个或多个大写字母 + 下划线（如 KW_Batt_volt → KW）。
+# 混合大小写的非站点列（Batt_volt_Self_Avg、PTemp_Self_Avg、Send_TimeStamp(n)）
+# 不会匹配，安全。
+STATION_PREFIX_RE = re.compile(r'^([A-Z]+)_')
+
+
+# ---------------------------------------------------------------------------
+# 站点列块识别
+# ---------------------------------------------------------------------------
+def _group_station_columns(all_columns: list[str]) -> dict[str, list[int]]:
+    """
+    按列名前缀把列分组为站点块，返回 {站点前缀: [起始列索引, 结束列索引]}。
+
+    站点块在 TOA5 文件中是连续的（站点自己的 Header 列开头），
+    因此取该前缀出现的最小/最大索引即可圈定范围；块内夹杂的
+    ID(n)、Send_TimeStamp(n) 等公共列会在字段映射阶段被自然丢弃。
+    """
+    blocks: dict[str, list[int]] = {}
+    for idx, col in enumerate(all_columns):
+        m = STATION_PREFIX_RE.match(col)
+        if not m:
+            continue
+        prefix = m.group(1)
+        if prefix in blocks:
+            blocks[prefix][1] = idx
+        else:
+            blocks[prefix] = [idx, idx]
+    return blocks
 
 
 # ---------------------------------------------------------------------------
 # 解析 TOA5 文件（单文件）
 # ---------------------------------------------------------------------------
-def _parse_toa5_dynamically(file_path: Path) -> pd.DataFrame | None:
+def _parse_toa5_dynamically(file_path: Path) -> tuple[pd.DataFrame | None, dict]:
     """
-    动态解析 TOA5 宽格式文件，返回长格式 DataFrame。
-    如果文件不存在或为空，返回 None。
+    动态解析 TOA5 宽格式文件，返回 (长格式 DataFrame, 解析报告 dict)。
+    如果文件不存在或为空，返回 (None, {})。
+
+    解析报告包含：
+      - stations_found:   文件中实际出现的站点前缀
+      - new_stations:     不在 KNOWN_STATIONS 中的新站点（会自动导入）
+      - missing_stations: 已知但本次文件缺席的站点（标缺失，不报错）
+      - dropped_columns:  无法映射到模型字段而被丢弃的列名
     """
     if not file_path.exists():
-        return None
+        return None, {}
 
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -58,6 +91,15 @@ def _parse_toa5_dynamically(file_path: Path) -> pd.DataFrame | None:
     data_lines = lines[header_start_index + 4:]
     all_columns = [col.strip('"') for col in header_lines[1].split(',')]
 
+    station_blocks = _group_station_columns(all_columns)
+    stations_found = sorted(station_blocks.keys())
+    report = {
+        'stations_found': stations_found,
+        'new_stations': [s for s in stations_found if s not in KNOWN_STATIONS],
+        'missing_stations': [s for s in KNOWN_STATIONS if s not in station_blocks],
+        'dropped_columns': [],
+    }
+
     df_wide = pd.read_csv(
         StringIO("".join(data_lines)),
         header=None,
@@ -69,27 +111,25 @@ def _parse_toa5_dynamically(file_path: Path) -> pd.DataFrame | None:
 
     model_field_names = {f.name for f in WeatherData._meta.get_fields()}
     processed_rows = []
+    dropped = set()
 
     for _, row in df_wide.iterrows():
         timestamp = row['TIMESTAMP']
-        for station_prefix, start_col_name, end_col_name in STATION_DEFINITIONS:
-            try:
-                start_idx = all_columns.index(start_col_name)
-                end_idx = all_columns.index(end_col_name) + 1
-            except ValueError as e:
-                raise CommandError(
-                    f"为站点 '{station_prefix}' 定义的列 '{e.args[0]}' 在文件头中未找到。"
-                )
-
-            station_data_slice = row[start_idx:end_idx]
+        for station_prefix, (start_idx, end_idx) in station_blocks.items():
+            station_data_slice = row[start_idx:end_idx + 1]
             new_row = {'timestamp': timestamp, 'station_name': station_prefix}
             for col_name, value in station_data_slice.items():
+                if not col_name.startswith(station_prefix + '_'):
+                    continue  # 块内夹杂的 ID(n) / Send_TimeStamp(n) 等公共列
                 base_name = col_name.replace(station_prefix + '_', '', 1).lower()
                 if base_name in model_field_names:
                     new_row[base_name] = value
+                else:
+                    dropped.add(col_name)
             processed_rows.append(new_row)
 
-    return pd.DataFrame(processed_rows) if processed_rows else None
+    report['dropped_columns'] = sorted(dropped)
+    return (pd.DataFrame(processed_rows) if processed_rows else None), report
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +185,13 @@ def _import_new_records(df: pd.DataFrame, stdout, style) -> dict:
     使用 Unix 秒级整数作为比对键，彻底规避时区库格式差异。
     """
     station_names = df['station_name'].unique()
-    stations = {name: Station.objects.get_or_create(name=name)[0] for name in station_names}
+    stations = {}
+    created_stations = []
+    for name in station_names:
+        station_obj, created = Station.objects.get_or_create(name=name)
+        stations[name] = station_obj
+        if created:
+            created_stations.append(name)
 
     min_ts = df['timestamp'].min()
     max_ts = df['timestamp'].max()
@@ -198,6 +244,7 @@ def _import_new_records(df: pd.DataFrame, stdout, style) -> dict:
         'records_created': records_created,
         'skip_existing': skip_existing,
         'total_unique': len(df),
+        'created_stations': created_stations,
     }
 
 
@@ -253,17 +300,39 @@ class Command(BaseCommand):
         # ---------------------------------------------------------------
         self.stdout.write("[Parse] 解析文件...")
         dfs = []
+        all_new_stations: set[str] = set()
+        all_missing_stations: set[str] = set()
+        all_dropped_columns: set[str] = set()
         for f in files:
-            df = _parse_toa5_dynamically(f)
+            df, report = _parse_toa5_dynamically(f)
             if df is not None and not df.empty:
                 dfs.append(df)
                 self.stdout.write(f"  {f.name}: {len(df)} 行")
             else:
                 self.stdout.write(f"  {f.name}: 无数据或文件为空")
+            if report:
+                self.stdout.write(f"    站点: {', '.join(report['stations_found']) or '无'}")
+                if report['new_stations']:
+                    all_new_stations.update(report['new_stations'])
+                    self.stdout.write(self.style.WARNING(
+                        f"    新增站点（自动导入）: {', '.join(report['new_stations'])}"
+                    ))
+                if report['missing_stations']:
+                    all_missing_stations.update(report['missing_stations'])
+                    self.stdout.write(self.style.WARNING(
+                        f"    缺失站点（本次无数据，已标记）: {', '.join(report['missing_stations'])}"
+                    ))
+                if report['dropped_columns']:
+                    all_dropped_columns.update(report['dropped_columns'])
 
         if not dfs:
             self.stdout.write(self.style.WARNING("[Parse] 所有文件均无有效数据，退出。"))
             return
+
+        if all_dropped_columns:
+            self.stdout.write(self.style.WARNING(
+                f"  以下列无法映射到模型字段，已丢弃: {', '.join(sorted(all_dropped_columns))}"
+            ))
 
         # ---------------------------------------------------------------
         # 合并与清洗阶段
@@ -289,3 +358,24 @@ class Command(BaseCommand):
             f"  跳过已有:     {stats['skip_existing']}\n"
             f"  新写入记录:   {stats['records_created']}\n"
         ))
+        if stats['created_stations']:
+            self.stdout.write(self.style.WARNING(
+                f"  新建站点:     {', '.join(stats['created_stations'])}"
+            ))
+        if all_missing_stations:
+            self.stdout.write(self.style.WARNING(
+                f"  缺失站点:     {', '.join(sorted(all_missing_stations))}（本次文件无数据，站点保留）"
+            ))
+
+        # ---------------------------------------------------------------
+        # 聚合阶段：导入后重算涉及时间范围的日/小时聚合，保证下游
+        # （AI 问答、预测流水线、聚合 API）读到最新数据
+        # ---------------------------------------------------------------
+        if stats['records_created'] > 0:
+            from data.aggregation import aggregate_range
+
+            self.stdout.write("[Aggregate] 重算日/小时聚合...")
+            agg_stats = aggregate_range(df['timestamp'].min(), df['timestamp'].max())
+            self.stdout.write(
+                f"  日聚合 {agg_stats['daily_rows']} 行, 小时聚合 {agg_stats['hourly_rows']} 行"
+            )
