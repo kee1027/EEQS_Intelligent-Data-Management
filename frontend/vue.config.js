@@ -37,14 +37,6 @@ module.exports = {
         }
       }
     }
-      '/api': {
-        target: 'http://10.16.13.46:8000',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/api': '/api'
-        }
-      }
-    }
   },
   css: {
     loaderOptions: {

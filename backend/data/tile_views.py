@@ -2,7 +2,7 @@ import hashlib
 from email.utils import parsedate_to_datetime
 
 from django.conf import settings
-from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotFound
 from django.utils.http import http_date
 from django.views import View
 
@@ -46,7 +46,9 @@ class TileView(View):
             except (TypeError, ValueError, OverflowError):
                 pass
 
-        response = FileResponse(tile_path.open("rb"), content_type=get_content_type(ext))
+        # 读入内存而非 FileResponse 流式返回：瓦片只有几十 KB，
+        # 且 Windows 上流式句柄不随响应关闭，会导致临时目录无法清理（WinError 32）。
+        response = HttpResponse(tile_path.read_bytes(), content_type=get_content_type(ext))
         response["ETag"] = f'"{etag}"'
         response["Last-Modified"] = last_modified_header
         response["Cache-Control"] = getattr(
