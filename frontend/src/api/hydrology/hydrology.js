@@ -7,3 +7,12 @@ export function getHydrologyData(params) {
     params
   })
 }
+
+// 手动重跑模型预测（操作员/管理员）
+export function triggerHydrologyRun(data) {
+  return request({
+    url: '/hydrology-runs/',
+    method: 'post',
+    data
+  })
+}

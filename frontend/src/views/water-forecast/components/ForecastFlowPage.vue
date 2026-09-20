@@ -5,16 +5,29 @@
         <nav class="breadcrumb">站点详细数据</nav>
         <h1>> {{ config.pageTitle }}</h1>
       </div>
-      <el-button
-        type="primary"
-        plain
-        size="mini"
-        icon="el-icon-download"
-        class="export-button"
-        @click="exportStationData"
-      >
-        导出站点数据
-      </el-button>
+      <div class="header-actions">
+        <el-button
+          v-permission="['operator', 'admin']"
+          type="warning"
+          plain
+          size="mini"
+          icon="el-icon-refresh"
+          :loading="rerunning"
+          @click="rerunForecast"
+        >
+          手动重跑预测
+        </el-button>
+        <el-button
+          type="primary"
+          plain
+          size="mini"
+          icon="el-icon-download"
+          class="export-button"
+          @click="exportStationData"
+        >
+          导出站点数据
+        </el-button>
+      </div>
     </header>
 
     <main class="dashboard-content">
@@ -86,6 +99,7 @@
 <script>
 import * as echarts from 'echarts'
 import request from '@/utils/request'
+import { triggerHydrologyRun } from '@/api/hydrology/hydrology'
 
 export default {
   name: 'ForecastFlowPage',
@@ -104,7 +118,8 @@ export default {
       maxValues: [],
       minValues: [],
       currentStep: 0,
-      isMockData: true
+      isMockData: true,
+      rerunning: false
     }
   },
   computed: {
@@ -149,6 +164,27 @@ export default {
     }
   },
   methods: {
+    async rerunForecast() {
+      this.rerunning = true
+      try {
+        const tomorrow = new Date(Date.now() + 86400000)
+        const targetDate = `${tomorrow.getFullYear()}-${`${tomorrow.getMonth() + 1}`.padStart(2, '0')}-${`${tomorrow.getDate()}`.padStart(2, '0')}`
+        const { data: run } = await triggerHydrologyRun({ target_date: targetDate })
+        if (run && run.status === 'success') {
+          this.$message.success(`预测完成：${run.run_id}，共 ${run.record_count} 条记录`)
+          this.fetchData()
+        } else {
+          this.$message.error(`预测失败：${(run && run.error_message) || '未知错误'}`)
+        }
+      } catch (error) {
+        const status = error && error.response && error.response.status
+        if (status !== 403) {
+          this.$message.error('重跑预测失败，请稍后重试')
+        }
+      } finally {
+        this.rerunning = false
+      }
+    },
     async fetchData() {
       try {
         await this.fetchRealForecastData()
@@ -163,18 +199,31 @@ export default {
       })
     },
     async fetchRealForecastData() {
+      // 真实数据源：最近一次成功预测运行的各站 7 天序列
+      // （仅 ten-days 页有对应后端数据；month/year 无对应尺度，走 mock 兜底）
+      if (this.period !== 'ten-days') {
+        throw new Error('该预测尺度暂无后端数据')
+      }
       const res = await request({
-        url: `/forecast/${this.period}`,
+        url: '/hydrology-forecast-daily/latest/',
         method: 'get'
       })
       const data = res.data
-      if (!data || !data.labels || !data.forecastValues) {
-        throw new Error('后端数据格式无效')
+      const stations = data && data.stations
+      if (!stations || !stations.length) {
+        throw new Error('暂无预测运行数据')
       }
-      this.labels = data.labels
-      this.forecastValues = data.forecastValues
-      this.maxValues = data.maxValues || []
-      this.minValues = data.minValues || []
+      // 取 KW（库威）站，没有则取第一个站
+      const station =
+        stations.find(s => s.station === 'KW') || stations[0]
+      const forecasts = station.forecasts || []
+      if (!forecasts.length) {
+        throw new Error('预测序列为空')
+      }
+      this.labels = forecasts.map(f => f.target_date.slice(5)) // MM-DD
+      this.forecastValues = forecasts.map(f => Number(f.flow_avg))
+      this.maxValues = []
+      this.minValues = []
       this.isMockData = false
     },
     prepareForecastData() {
@@ -226,11 +275,11 @@ export default {
             const core = this.forecastValues[idx]
             const min = this.minValues[idx]
             const max = this.maxValues[idx]
-            return [
-              this.labels[idx],
-              `核心预测: ${core} m³/s`,
-              `置信区间: ${min} ~ ${max} m³/s`
-            ].join('<br/>')
+            const lines = [this.labels[idx], `核心预测: ${core} m³/s`]
+            if (min != null && max != null) {
+              lines.push(`置信区间: ${min} ~ ${max} m³/s`)
+            }
+            return lines.join('<br/>')
           }
         },
         legend: {
