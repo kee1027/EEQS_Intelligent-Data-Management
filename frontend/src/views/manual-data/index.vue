@@ -6,6 +6,7 @@
       </div>
 
       <el-form
+        v-permission="['operator', 'admin']"
         ref="manualDataForm"
         :model="form"
         :rules="rules"
@@ -64,7 +65,7 @@
             <span>{{ scope.row.is_void ? '是' : '否' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" align="center">
+        <el-table-column v-if="canOperate" label="操作" width="130" align="center">
           <template slot-scope="scope">
             <el-button
               size="mini"
@@ -116,6 +117,9 @@ export default {
     },
     operatedAtDisplay() {
       return this.formatDate(new Date())
+    },
+    canOperate() {
+      return ['operator', 'admin'].includes(this.$store.getters.role)
     }
   },
   mounted() {
@@ -152,18 +156,22 @@ export default {
 
         this.submitting = true
         try {
-          await createManualData({
+          const { data: result } = await createManualData({
             data_at: this.formatDateToIsoWithOffset(this.form.data_at),
             value: this.form.value
           })
-          this.$message.success('提交成功')
+          if (result && result.superseded_id) {
+            this.$message.success('提交成功：已覆盖旧记录（原记录已作废留痕）')
+          } else {
+            this.$message.success('提交成功')
+          }
           this.loadRecords()
         } catch (error) {
           const status = error && error.response && error.response.status
           if (status === 409) {
-            this.$message.error('同一操作人+数据时间存在未作废记录，请先作废或更换时间')
+            this.$message.error('提交冲突，请刷新后重试')
           } else if (status === 403) {
-            this.$message.error('未登录或CSRF校验失败')
+            this.$message.error('需要操作员或管理员权限')
           } else if (status === 400) {
             this.$message.error('参数错误，请检查数据时间和数据值')
           } else {

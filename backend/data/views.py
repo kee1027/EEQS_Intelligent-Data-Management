@@ -1,4 +1,4 @@
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from celery.result import AsyncResult
 from rest_framework import mixins, permissions, status, viewsets
@@ -6,6 +6,9 @@ from rest_framework.decorators import action, api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.response import Response
+
+from accounts.permissions import IsOperatorOrAdmin
+from accounts.roles import ROLE_ADMIN, ROLE_OPERATOR, user_role
 
 from .filters import (
     HydrologyForecastDailyFilter,
@@ -79,29 +82,74 @@ class AlreadyVoidedError(APIException):
     default_code = "already_voided"
 
 
-class ManualDataRecordViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+class ManualDataRecordViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     """
-    API endpoint that allows manual data to be created.
+    人工录入数据。
+
+    权限：
+    - 列表/详情：所有登录用户（含 viewer）可读
+    - 提交/作废：操作员或管理员（IsOperatorOrAdmin）
+    - 不提供更新与删除——纠错通过「再次提交」完成：
+
+    覆盖留痕：同一操作员对同一 data_at 再次提交时，旧记录自动作废
+    （is_void=True，保留作废人与作废时间），新记录取而代之。
+    原始错误提交永久留痕，不会从数据库消失。
     """
 
-    queryset = ManualDataRecord.objects.select_related("operator").all()
+    queryset = ManualDataRecord.objects.select_related("operator", "voided_by").all()
     serializer_class = ManualDataRecordSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ("create", "void"):
+            return [IsOperatorOrAdmin()]
+        return [permissions.IsAuthenticated()]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            self.perform_create(serializer)
+            with transaction.atomic():
+                superseded = self._supersede_existing(request, serializer)
+                self.perform_create(serializer)
         except IntegrityError as exc:
             raise ConflictError() from exc
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        data = dict(serializer.data)
+        if superseded is not None:
+            data["superseded_id"] = superseded.id
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def _supersede_existing(self, request, serializer):
+        """作废同一操作员在同一 data_at 的生效中记录，返回被覆盖的记录或 None。"""
+        existing = (
+            ManualDataRecord.objects.select_for_update()
+            .filter(
+                operator=request.user,
+                data_at=serializer.validated_data["data_at"],
+                is_void=False,
+            )
+            .first()
+        )
+        if existing is None:
+            return None
+        existing.is_void = True
+        existing.voided_at = timezone.now()
+        existing.voided_by = request.user
+        existing.save(update_fields=["is_void", "voided_at", "voided_by", "updated_at"])
+        return existing
+
+    def perform_create(self, serializer):
+        serializer.save(operator=self.request.user)
 
     @action(detail=True, methods=["post"], url_path="void")
     def void(self, request, *args, **kwargs):
         record = self.get_object()
-        if record.operator_id != request.user.id and not request.user.is_staff:
+        if record.operator_id != request.user.id and not request.user.is_superuser:
             raise PermissionDenied("仅创建该记录的用户或管理员可作废。")
         if record.is_void:
             raise AlreadyVoidedError()
@@ -127,8 +175,8 @@ class HydrologyForecastRunViewSet(mixins.CreateModelMixin, mixins.ListModelMixin
         return HydrologyForecastRunSerializer
 
     def create(self, request, *args, **kwargs):
-        if not request.user.is_staff:
-            raise PermissionDenied("仅管理员可手动补跑预测任务。")
+        if user_role(request.user) not in (ROLE_ADMIN, ROLE_OPERATOR):
+            raise PermissionDenied("仅操作员或管理员可手动补跑预测任务。")
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

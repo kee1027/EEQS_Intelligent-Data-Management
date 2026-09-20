@@ -93,8 +93,12 @@ class TileEndpointTests(TestCase):
 
 class ManualDataRecordApiTests(TestCase):
     def setUp(self):
+        from django.contrib.auth.models import Group
+        operator_group, _ = Group.objects.get_or_create(name="operator")
         self.user = get_user_model().objects.create_user(username="operator_a", password="test-pass-123")
+        self.user.groups.add(operator_group)
         self.other_user = get_user_model().objects.create_user(username="operator_b", password="test-pass-123")
+        self.other_user.groups.add(operator_group)
         self.url = "/api/manual-data/"
         self.payload = {
             "data_at": "2026-04-22T19:00:00+08:00",
@@ -119,12 +123,18 @@ class ManualDataRecordApiTests(TestCase):
         self.assertTrue(timezone.is_aware(record.operated_at))
         self.assertEqual(str(record.value), "12.340000")
 
-    def test_duplicate_operator_and_data_at_returns_409(self):
+    def test_duplicate_operator_and_data_at_supersedes_with_trail(self):
+        """再次提交同一 data_at：旧记录自动作废留痕，新记录生效（201 + superseded_id）。"""
         self.client.force_login(self.user)
-        self.client.post(self.url, data=self.payload, content_type="application/json")
+        first_response = self.client.post(self.url, data=self.payload, content_type="application/json")
         second_response = self.client.post(self.url, data=self.payload, content_type="application/json")
 
-        self.assertEqual(second_response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second_response.json()["superseded_id"], first_response.json()["id"])
+
+        old_record = ManualDataRecord.objects.get(id=first_response.json()["id"])
+        self.assertTrue(old_record.is_void)
+        self.assertEqual(old_record.voided_by, self.user)
 
     def test_void_record_success(self):
         self.client.force_login(self.user)
@@ -160,10 +170,10 @@ class ManualDataRecordApiTests(TestCase):
 
 class HydrologyRunApiTests(TestCase):
     def setUp(self):
-        self.admin_user = get_user_model().objects.create_user(
+        self.admin_user = get_user_model().objects.create_superuser(
             username="admin_user",
             password="test-pass-123",
-            is_staff=True,
+            email="admin@test.cn",
         )
         self.normal_user = get_user_model().objects.create_user(
             username="normal_user",
