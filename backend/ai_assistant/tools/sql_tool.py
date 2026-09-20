@@ -17,7 +17,7 @@ import re
 import time
 
 from django.conf import settings
-from django.db import connection
+from django.db import connection, transaction
 from langchain_core.tools import tool
 
 from ..agent.llm import get_chat_model
@@ -68,15 +68,19 @@ def _execute_readonly(sql: str) -> tuple[list[str], list[tuple], bool]:
     SQLite（本地开发/测试）不支持该参数则跳过。
     """
     max_rows = settings.AI_SQL_MAX_ROWS
-    with connection.cursor() as cursor:
-        if connection.vendor == "postgresql":
-            cursor.execute(
-                "SET statement_timeout = %s",
-                [int(settings.AI_SQL_TIMEOUT_SECONDS * 1000)],
-            )
-        cursor.execute(sql)
-        columns = [col[0] for col in cursor.description]
-        rows = cursor.fetchmany(max_rows + 1)
+    # atomic() 创建 savepoint：SQL 执行报错时只回滚到 savepoint，
+    # 外层事务不被污染，调用方 finally 里的审计日志才能正常落库
+    # （PostgreSQL 中语句出错会中止整个事务，SQLite 无此问题）。
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            if connection.vendor == "postgresql":
+                cursor.execute(
+                    "SET statement_timeout = %s",
+                    [int(settings.AI_SQL_TIMEOUT_SECONDS * 1000)],
+                )
+            cursor.execute(sql)
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchmany(max_rows + 1)
     truncated = len(rows) > max_rows
     return columns, rows[:max_rows], truncated
 

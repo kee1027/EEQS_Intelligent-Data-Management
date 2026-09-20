@@ -342,6 +342,8 @@
  * 这样前端无需关心底层 LLM 的差异
  */
 
+import Cookies from 'js-cookie'
+
 export default {
   name: 'AiAssistant',
 
@@ -362,6 +364,9 @@ export default {
       // 对话消息列表
       // 结构: { role: 'user'|'assistant', content: '消息内容', time: '10:30' }
       messageList: [],
+
+      // 当前会话 ID（首轮问答后由后端 meta 事件下发，用于多轮记忆）
+      sessionId: null,
 
       // 快捷问题推荐列表（引导用户使用）
       suggestionList: [
@@ -391,24 +396,19 @@ export default {
     async fetchAiConfig() {
       try {
         const response = await fetch(
-          process.env.VUE_APP_BASE_API + '/ai/config',
+          process.env.VUE_APP_BASE_API + '/ai/config/',
           {
             method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              // 携带认证 Token（如后端需要鉴权）
-              'Authorization': this.$store.getters.token || ''
-            }
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
           }
         )
 
         if (response.ok) {
           const result = await response.json()
-          if (result.code === 200 && result.data) {
-            this.llmModelName = result.data.modelDisplay || result.data.model || '未知模型'
-            this.apiStatus = 'connected'
-            return
-          }
+          this.llmModelName = result.model || '智能模型'
+          this.apiStatus = 'connected'
+          return
         }
         throw new Error('获取配置失败')
       } catch (error) {
@@ -454,28 +454,25 @@ export default {
     // 使用原生 Fetch API + ReadableStream 实现 SSE 流式消费
     // ==========================================================================
     async sendStreamRequest(text) {
-      // 构建历史记录（排除当前刚添加的用户消息）
-      const history = this.messageList
-        .slice(0, -1)
-        .map(m => ({ role: m.role, content: m.content }))
-
+      // 后端通过 session_id + thread_id 维护多轮记忆，无需前端回传历史
       // 添加空的助手消息占位（用于流式填充）
       this.addMessage('assistant', '')
       const assistantIndex = this.messageList.length - 1
 
       // 使用原生 Fetch API（Axios 不支持流式读取）
+      // Session 认证：credentials: 'include' 携带 sessionid Cookie，POST 需带 CSRF 头
       const response = await fetch(
-        process.env.VUE_APP_BASE_API + '/ai/chat',
+        process.env.VUE_APP_BASE_API + '/ai/chat/',
         {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': this.$store.getters.token || ''
+            'X-CSRFToken': Cookies.get('csrftoken') || ''
           },
           body: JSON.stringify({
             message: text,
-            history: history,
-            stream: true
+            session_id: this.sessionId || undefined
           })
         }
       )
@@ -488,47 +485,71 @@ export default {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let accumulatedContent = ''
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+        // SSE 帧可能跨 chunk：用 buffer 拼接，只处理完整的行
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
 
         for (const line of lines) {
-          // SSE 协议格式: data: {...}
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (!data || data === '[DONE]') continue
 
-            // 结束标记
-            if (data === '[DONE]') continue
+          let parsed
+          try {
+            parsed = JSON.parse(data)
+          } catch (e) {
+            continue // 非 JSON 帧忽略
+          }
 
-            try {
-              const parsed = JSON.parse(data)
+          // 后端事件协议：meta / token / tool_start / tool_end / final / error
+          switch (parsed.type) {
+            case 'meta':
+              this.sessionId = parsed.session_id
+              break
+            case 'token':
+              accumulatedContent += parsed.content || ''
+              this.$set(this.messageList, assistantIndex, {
+                ...this.messageList[assistantIndex],
+                content: accumulatedContent
+              })
+              this.scrollToBottom()
+              break
+            case 'tool_start':
+              if (!accumulatedContent) {
+                this.$set(this.messageList, assistantIndex, {
+                  ...this.messageList[assistantIndex],
+                  content: '⏳ 正在查询数据库…'
+                })
+              }
+              break
+            case 'tool_end':
+              if (accumulatedContent === '' || this.messageList[assistantIndex].content === '⏳ 正在查询数据库…') {
+                this.$set(this.messageList, assistantIndex, {
+                  ...this.messageList[assistantIndex],
+                  content: accumulatedContent
+                })
+              }
+              break
+            case 'final':
+              // final 是完整回答：直接替换，避免与 token 流重复拼接
               if (parsed.content) {
-                accumulatedContent += parsed.content
-                // Vue 2 数组更新需要用 $set 触发响应式
+                accumulatedContent = parsed.content
                 this.$set(this.messageList, assistantIndex, {
                   ...this.messageList[assistantIndex],
                   content: accumulatedContent
                 })
                 this.scrollToBottom()
               }
-              if (parsed.error) {
-                throw new Error(parsed.error)
-              }
-            } catch (e) {
-              // 如果解析失败但数据不是 [DONE]，可能是纯文本流
-              if (data !== '[DONE]') {
-                accumulatedContent += data
-                this.$set(this.messageList, assistantIndex, {
-                  ...this.messageList[assistantIndex],
-                  content: accumulatedContent
-                })
-                this.scrollToBottom()
-              }
-            }
+              break
+            case 'error':
+              throw new Error(parsed.message || 'AI 服务错误')
           }
         }
       }

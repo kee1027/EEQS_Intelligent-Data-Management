@@ -10,6 +10,7 @@ SSE（Server-Sent Events）说明：响应 Content-Type 为 text/event-stream，
 curl 测试：curl -N -u user:pass -X POST ... -d '{"message":"..."}'
 """
 
+from django.conf import settings
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -55,3 +56,9 @@ def session_detail_view(request, session_id):
     if session is None:
         return Response({"detail": "会话不存在"}, status=status.HTTP_404_NOT_FOUND)
     return Response(AiChatSessionDetailSerializer(session).data)
+
+
+@api_view(["GET"])
+def config_view(request):
+    """AI 助手配置：当前使用的 LLM 模型名等展示信息。"""
+    return Response({"model": settings.AI_LLM_MODEL})
